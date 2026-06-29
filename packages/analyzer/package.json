@@ -1,0 +1,13 @@
+{
+  "name": "@platform/analyzer",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@babel/parser": "^7.23.9",
+    "@babel/traverse": "^7.23.9"
+  },
+  "devDependencies": {
+    "@types/babel__traverse": "^7.20.5"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
+    "rootDir": "./",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@prisma/client": ["node_modules/@prisma/client"]
+    }
+  },
+  "ts-node": {
+    "transpileOnly": true,
+    "preferTsExts": true,
+    "logError": false
+  },
+  "include": ["packages/**/*"]
+}

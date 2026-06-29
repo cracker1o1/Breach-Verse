@@ -1,0 +1,202 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Assessment {
+  id                  String                 @id @default(uuid())
+  targetUrl           String
+  createdAt           DateTime               @default(now())
+  endpoints           Endpoint[]
+  scripts             Script[]
+  functions           FunctionInventory[]
+  classes             ClassInventory[]
+  callGraphEdges      CallGraphEdge[]
+  taintFlows          TaintFlow[]
+  cryptoOperations    CryptoOperation[]
+  secretValidations   SecretValidation[]
+  fingerprints        FingerprintTracking[]
+  runtimeTaintFlows   RuntimeTaintFlow[]
+  authGraphs          AuthenticationGraph[]
+  jwtGraphs           JWTGraph[]
+  storageGraphs       StorageGraph[]
+  businessLogicGraphs BusinessLogicGraph[]
+  domArtifacts        DOMArtifact[]
+  browserStates       BrowserState[]
+  executionGraphs     ExecutionGraph[]
+}
+
+model Endpoint {
+  id           String     @id @default(uuid())
+  url          String
+  method       String
+  sourceFile   String
+  type         String
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model Script {
+  id           String     @id @default(uuid())
+  url          String
+  type         String
+  rawContent   String
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model FunctionInventory {
+  id           String     @id @default(uuid())
+  name         String
+  sourceFile   String
+  startLine    Int
+  endLine      Int
+  isAsync      Boolean
+  params       String     
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model ClassInventory {
+  id           String     @id @default(uuid())
+  name         String
+  sourceFile   String
+  methods      String     
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model CallGraphEdge {
+  id           String     @id @default(uuid())
+  caller       String
+  callee       String
+  sourceFile   String
+  lineNumber   Int
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model TaintFlow {
+  id           String     @id @default(uuid())
+  sourceType   String     
+  sinkType     String     
+  flowPath     String     
+  confidence   Int
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model CryptoOperation {
+  id           String     @id @default(uuid())
+  type         String     
+  mode         String     
+  keySource    String
+  ivSource     String
+  outputFormat String
+  destination  String
+  sourceFile   String
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model SecretValidation {
+  id           String     @id @default(uuid())
+  ruleName     String
+  secretValue  String
+  exposure     String     
+  details      String
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model FingerprintTracking {
+  id           String     @id @default(uuid())
+  provider     String     
+  detectedIn   String
+  trustFlow    String     
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model RuntimeTaintFlow {
+  id           String     @id @default(uuid())
+  sourceType   String
+  sinkType     String
+  actualValue  String
+  executionStep String    
+  timestamp    DateTime   @default(now())
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model AuthenticationGraph {
+  id           String     @id @default(uuid())
+  nodeType     String     
+  edgePath     String     
+  payloadBlob  String     
+  observedAt   DateTime   @default(now())
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model JWTGraph {
+  id           String     @id @default(uuid())
+  tokenSnippet String
+  lifecycleStep String    
+  location     String     
+  destination  String
+  timestamp    DateTime   @default(now())
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model StorageGraph {
+  id           String     @id @default(uuid())
+  engine       String     
+  keyName      String
+  valueSnippet String
+  mappedCall   String
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model BusinessLogicGraph {
+  id           String     @id @default(uuid())
+  subsystem    String     
+  operation    String
+  apiRoute     String
+  dataState    String
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model DOMArtifact {
+  id           String     @id @default(uuid())
+  elementType  String     
+  elementHtml  String
+  attributes   String     
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model BrowserState {
+  id           String     @id @default(uuid())
+  globalObject String     
+  extractedKey String
+  stateValue   String
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model ExecutionGraph {
+  id           String     @id @default(uuid())
+  moduleType   String     
+  identifier   String
+  dependencies String     
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}

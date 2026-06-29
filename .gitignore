@@ -1,0 +1,9 @@
+node_modules/
+.env
+encrypted.bin
+security_report.html
+security_report.json
+security_report.jsonl
+security_report.csv
+security_report.md
+.DS_Store

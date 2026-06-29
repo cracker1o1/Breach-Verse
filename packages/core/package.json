@@ -1,0 +1,11 @@
+{
+  "name": "@platform/core",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "dependencies": {
+    "@platform/database": "1.0.0",
+    "@platform/instrumentation": "1.0.0",
+    "@platform/analyzer": "1.0.0",
+    "playwright": "^1.42.1"
+  }
+}

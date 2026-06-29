@@ -1,0 +1,29 @@
+{
+  "name": "client-side-security-platform",
+  "version": "1.0.0",
+  "description": "Advanced Client-Side Security Intelligence Engine",
+  "main": "packages/core/src/index.ts",
+  "scripts": {
+    "start": "node --dns-result-order=ipv4first --max-old-space-size=2560 node_modules/.bin/ts-node packages/core/src/index.ts",
+    "batch": "node --dns-result-order=ipv4first --max-old-space-size=2560 node_modules/.bin/ts-node packages/core/src/batch_analyzer.ts",
+    "clear": "rm -f packages/database/prisma/dev.db && npx prisma db push --schema=./packages/database/prisma/schema.prisma"
+  },
+  "keywords": [
+    "security",
+    "ast",
+    "reverse-engineering",
+    "taint-analysis"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "dotenv": "^17.4.2",
+    "playwright": "^1.61.1",
+    "prisma": "^5.22.0"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
+  }
+}
