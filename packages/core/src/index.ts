@@ -21,12 +21,10 @@ const CYAN = '\x1b[36m';
 const YELLOW = '\x1b[33m';
 const WHITE = '\x1b[37m';
 
-// Dynamic Network Verifier to filter dead targets instantly before browser allocation
 async function isTargetAlive(targetUrl: string): Promise<boolean> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 7000); // 7-second aggressive timeout constraint
-
+    const timeoutId = setTimeout(() => controller.abort(), 7000);
     const res = await fetch(targetUrl, { 
       method: 'GET', 
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Asset-Validation-Scanner/1.0' },
@@ -39,18 +37,17 @@ async function isTargetAlive(targetUrl: string): Promise<boolean> {
   }
 }
 
-// COHESIVE ANSI HELP MENU INTERFACE DESIGN
 function displayHelpMenu(): void {
   console.log(`\n${CYAN}======================================================================${RESET}`);
   console.log(`${BOLD}${CYAN}🌌 BREACH-VERSE - REVERSE ENGINEERING PLATFORM CONTROL SHELL${RESET}`);
   console.log(`======================================================================${RESET}`);
-  console.log(`${BOLD}${WHITE}Usage Pattern:${RESET} npm start -- ["target_url" | "subdomains_list.txt"] ["options"]`);
+  console.log(`${BOLD}${WHITE}Usage Pattern:${RESET} npm start -- [target_url | subdomains_list.txt] [options]`);
   console.log(`\n${BOLD}${WHITE}CORE OPTIONS Constraints:${RESET}`);
-  console.log(`  --headed       Opens browser virtualization in headed GUI mode.`);
+  console.log(`  --headed       Spawns browser virtualization in headed GUI mode.`);
   console.log(`  --help, -h     Brings up this granular operational pipeline menu.`);
   console.log(`\n${BOLD}${WHITE}AUTOMATION SCRIPTS PIPELINE WORKFLOWS:${RESET}`);
   console.log(`  ${YELLOW}npm start -- <input>${RESET}   Ingest singular endpoint target or bulk subdomain files.`);
-  console.log("  " + YELLOW + "npm run batch" + RESET + "          Launches dynamic multi-provider AI context console (Option 1-6).");
+  console.log(`  ${YELLOW}npm run batch${RESET}          Launches dynamic multi-provider AI context console (Option 1-6).`);
   console.log(`  ${YELLOW}npm run clear${RESET}          Wipes all temporary reports, maps, and empties SQLite states.`);
   console.log(`${CYAN}======================================================================${RESET}\n`);
 }
@@ -65,7 +62,7 @@ async function scanSingleTarget(targetUrl: string, isHeaded: boolean) {
   
   const alive = await isTargetAlive(targetUrl);
   if (!alive) {
-    console.error(` [${RED}❌ SKIP${RESET}] Target subdomain host appears offline or unreachable.`);
+    console.error(` [${RED}❌ SKIP${RESET}] Target host appears offline or unreachable.`);
     return;
   }
   console.log(` [${GREEN}✔ LIVE${RESET}] Injecting dynamic vulnerability parameter tracking hooks...`);
@@ -178,7 +175,21 @@ async function scanSingleTarget(targetUrl: string, isHeaded: boolean) {
 
   try {
     await page.goto(fuzzedTargetNavigationUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.waitForTimeout(8000); 
+
+    if (!isHeaded) {
+      await page.waitForTimeout(8000);
+    } else {
+      console.log(`\n${YELLOW}[*] ${BOLD}HEADED SESSION ACTIVE:${RESET} Intercepting proxy traffic...`);
+      console.log(`[!] Keep interacting. ${RED}${BOLD}Close the Chromium window manually${RESET} to save and dump logs.`);
+
+      await new Promise<void>((resolve) => {
+        page.on('close', () => {
+          console.log(`\n${GREEN}[✔] Browser window closure detected successfully.${RESET}`);
+          resolve();
+        });
+        browser.on('disconnected', () => resolve());
+      });
+    }
 
     const frameworks = await InstrumentationEngine.harvestDetectedFrameworks(page);
     for (const fw of frameworks) {
@@ -232,16 +243,25 @@ async function scanSingleTarget(targetUrl: string, isHeaded: boolean) {
 
   } catch (err: any) {
     console.error(` [${RED}❌${RESET}] Navigation Exception: ${err.message}`);
-  } finally { // 🔥 FIXED: Changed from 'final' to 'finally' to fix compile error
+  } finally {
+    console.log(`[✔] Telemetry matrices safely dumped to the local instance database.`);
     await browser.close();
     console.log(` [${GREEN}✔${RESET}] Target transaction closed out safely.`);
+
+    console.log(`\n${GREEN}======================================================================${RESET}`);
+    console.log(`${BOLD}${GREEN}🚀 SESSION COMPLETED & RECORDED EXTRACTED ARTIFACTS${RESET}`);
+    console.log(`${CYAN}----------------------------------------------------------------------${RESET}`);
+    console.log(`👉 Run the analyzer core now to audit the findings with AI:`);
+    console.log(`   ${BOLD}${YELLOW}npm run batch${RESET}`);
+    console.log(`${GREEN}======================================================================${RESET}\n`);
+
+    process.exit(0);
   }
 }
 
 async function startCoreCapture() {
   const args = process.argv.slice(2);
   
-  // INTERCEPT HELP FLAG COMMANDS INSTANTLY BEFORE BOOTSTRAP
   if (args.includes('--help') || args.includes('-h')) {
     displayHelpMenu();
     return;
@@ -251,12 +271,13 @@ async function startCoreCapture() {
   const inputParam = args.filter(arg => !arg.startsWith('--'))[0] || 'https://example.com';
   
   console.log(`\n${CYAN}======================================================================${RESET}`);
-  console.log(`${BOLD}${CYAN}🚀 ENTERPRISE REVERSE ENGINEERING BULK AUTOMATION LAYER${RESET}`);
+  console.log(`${BOLD}${CYAN}🚀 ENTERPRISE REVERSE ENGINEERING AUTOMATION LAYER${RESET}`);
   console.log(`======================================================================${RESET}`);
 
   let rawTargets: string[] = [];
+  const isFileList = fs.existsSync(inputParam);
 
-  if (fs.existsSync(inputParam)) {
+  if (isFileList) {
     console.log(`[+] Subdomain list text file asset detected: ${BOLD}${WHITE}${path.resolve(inputParam)}${RESET}`);
     const fileLines = fs.readFileSync(inputParam, 'utf-8').split('\n');
     for (let line of fileLines) {
@@ -266,20 +287,27 @@ async function startCoreCapture() {
       }
     }
   } else {
+    // Single Target Injection Path Configuration
     rawTargets.push(inputParam.startsWith('http') ? inputParam : `https://${inputParam}`);
   }
 
   const targetsQueue = Array.from(new Set(rawTargets));
-  console.log(`[+] Mapped ${GREEN}${targetsQueue.length}${RESET} unique scopes into target queue (Duplicates Excluded).`);
 
-  for (let i = 0; i < targetsQueue.length; i++) {
-    console.log(`\n[ Running Queue Step: ${i + 1} / ${targetsQueue.length} ]`);
-    await scanSingleTarget(targetsQueue[i], isHeaded);
+  // 🔥 FIXED: UI logic condition mapping to prevent treating single target as a list batch
+  if (isFileList) {
+    console.log(`[+] Mapped ${GREEN}${targetsQueue.length}${RESET} unique scopes into target queue.`);
+    for (let i = 0; i < targetsQueue.length; i++) {
+      console.log(`\n[ Running Queue Step: ${i + 1} / ${targetsQueue.length} ]`);
+      await scanSingleTarget(targetsQueue[i], isHeaded);
+    }
+  } else {
+    console.log(`[+] Executing standalone vector target direct routing: ${BOLD}${YELLOW}${targetsQueue[0]}${RESET}`);
+    await scanSingleTarget(targetsQueue[0], isHeaded);
   }
 
   console.log(`\n${GREEN}======================================================================${RESET}`);
-  console.log(`${BOLD}${GREEN}✔ ALL SUBDOMAINS SCANNED: Telemetry mapping matrices written cleanly to DB.`);
-  console.log(`👉 Fire 'npm run batch' now to audit collected artifacts with the AI core.${RESET}`);
+  console.log(`${BOLD}${GREEN}✔ RUN COMPLETE: Telemetry matrices written cleanly to DB.${RESET}`);
+  console.log(`${BOLD}${GREEN}👉 Fire 'npm run batch' now to audit collected artifacts with the AI core.${RESET}`);
   console.log(`${GREEN}======================================================================${RESET}\n`);
 }
 

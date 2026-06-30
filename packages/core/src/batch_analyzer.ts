@@ -18,7 +18,6 @@ const CYAN = '\x1b[36m';
 const WHITE = '\x1b[37m';
 
 const BG_RED = '\x1b[41m';
-const BG_DARK = '\x1b[40m';
 
 const SECRETFINDER_RULES: Record<string, RegExp> = {
   'Google Cloud API Key': /AIza[0-9A-Za-z-_]{35}/g,
@@ -48,44 +47,32 @@ function colorizeMarkdownResponse(text: string): string {
       if (line.startsWith('### ')) return `${BOLD}${BLUE}${line}${RESET}`;
       
       let updatedLine = line;
-      if (updatedLine.includes('[CONFIRMED]')) {
-        updatedLine = updatedLine.replace('[CONFIRMED]', `${BG_RED}${BOLD}${WHITE}[CONFIRMED]${RESET}`);
-      }
-      if (updatedLine.includes('[LIKELY]')) {
-        updatedLine = updatedLine.replace('[LIKELY]', `${BOLD}${YELLOW}[LIKELY]${RESET}`);
-      }
-      if (updatedLine.includes('[POSSIBLE]')) {
-        updatedLine = updatedLine.replace('[POSSIBLE]', `${BOLD}${BLUE}[POSSIBLE]${RESET}`);
-      }
+      if (updatedLine.includes('[CONFIRMED]')) updatedLine = updatedLine.replace('[CONFIRMED]', `${BG_RED}${BOLD}${WHITE}[CONFIRMED]${RESET}`);
+      if (updatedLine.includes('[LIKELY]')) updatedLine = updatedLine.replace('[LIKELY]', `${BOLD}${YELLOW}[LIKELY]${RESET}`);
+      if (updatedLine.includes('[POSSIBLE]')) updatedLine = updatedLine.replace('[POSSIBLE]', `${BOLD}${BLUE}[POSSIBLE]${RESET}`);
       return updatedLine;
     })
     .join('\n');
 }
 
-// ====================================================================
-// OPENAPI SPECIFICATION SCHEMA COMPILER VECTOR GENERATOR
-// ====================================================================
 function compileOpenAPISpecificationFile(endpoints: any[]): string {
   const swaggerSkeleton: any = {
     openapi: '3.0.0',
-    info: { title: 'Reverse Engineered Client API Map Blueprint Spec', version: '1.0.0', description: 'Auto-compiled schema via intercepted application telemetry network parameters.' },
+    info: { title: 'Reverse Engineered Client API Map Blueprint Spec', version: '1.0.0', description: 'Auto-compiled schema.' },
     paths: {}
   };
-
   endpoints.forEach(e => {
     try {
       const urlObject = new URL(e.url);
       const pathname = urlObject.pathname || '/';
       const methodLower = e.method.toLowerCase();
-
       if (!swaggerSkeleton.paths[pathname]) swaggerSkeleton.paths[pathname] = {};
       swaggerSkeleton.paths[pathname][methodLower] = {
-        summary: `Auto-Harvested Client Interaction Flow Endpoint Resource Target`,
-        responses: { '200': { description: 'Successful transaction context response mapping profile verification capture.' } }
+        summary: `Auto-Harvested Endpoint Resource`,
+        responses: { '200': { description: 'Successful mapping capture.' } }
       };
     } catch (err) {}
   });
-
   return JSON.stringify(swaggerSkeleton, null, 2);
 }
 
@@ -110,9 +97,9 @@ async function launchAnalyzerConsole() {
   console.log(`${BOLD}Recent Scanning Focus      :${RESET} ${YELLOW}${latestAssessment.targetUrl}${RESET}`);
   console.log(`${CYAN}----------------------------------------------------------------------${RESET}`);
   console.log(`${BOLD}${WHITE}Select AI Provider Module Node or Offline Reporting Action:${RESET}`);
-  console.log(` [1] ${BOLD}${CYAN}Google Gemini 2.5 Pro Core${RESET} (Context-Cached Shell Framework)`);
+  console.log(` [1] ${BOLD}${CYAN}Google Gemini 2.5 Pro Core${RESET}`);
   console.log(` [2] ${BOLD}${GREEN}Groq Cloud Compute Grid${RESET} (Llama 3 70B Fast Chat⚡)`);
-  console.log(` [3] ${BOLD}${MAGENTA}Mistral Large Infrastructure AI Core${RESET} (Direct Chat Mode)`);
+  console.log(` [3] ${BOLD}${MAGENTA}Mistral Large Infrastructure AI Core${RESET}`);
   console.log(` [4] ${BOLD}${BLUE}Cohere Command-R Plus Enterprise Cluster${RESET}`);
   console.log(` [5] ${BOLD}${YELLOW}Compile & Export Auto-Generated OpenAPI Swagger Specs JSON Schema 📄${RESET}`);
   console.log(` [6] ${BOLD}${WHITE}${BG_RED} DISPLAY MASTER TELEMETRY COMPONENT MAPS PER ACTIVE TARGET SCOPING BLOCK 🔍 ${RESET}`);
@@ -121,35 +108,38 @@ async function launchAnalyzerConsole() {
   rl.question(`\n${BOLD}${WHITE}⚙ Choose Analytics Processing Vector Target (1-6): ${RESET}`, async (choice) => {
     const selectedOption = choice.trim();
 
-    // ==========================================
-    // OPTION 5: GENERATE OPENAPI SCHEMAS OUT-OF-BAND
-    // ==========================================
+    // AI Provider Registry
+    const PROVIDER_NAMES: Record<string, string> = {
+      '1': 'Google Gemini 2.5 Pro Core',
+      '2': 'Groq Cloud Compute Grid (Llama 3 70B)',
+      '3': 'Mistral Large Infrastructure AI Core',
+      '4': 'Cohere Command-R Plus Enterprise Cluster'
+    };
+
+    // Display active connector layer after provider selection
+    const activeEngine = PROVIDER_NAMES[selectedOption];
+    if (activeEngine) {
+      console.log(`\n======================================================================`);
+      console.log(`[⚡] ACTIVE CONNECTOR LAYER: Initializing channel via ${activeEngine}`);
+      console.log(`======================================================================\n`);
+    }
+
     if (selectedOption === '5') {
-      console.log(`\n[*] Compiling endpoints across all scanned subdomains into Swagger spec...`);
       const collectiveEndpoints: any[] = [];
       allAssessments.forEach(a => collectiveEndpoints.push(...a.endpoints));
-      
       const specPayloadString = compileOpenAPISpecificationFile(collectiveEndpoints);
       const outputPath = path.join(process.cwd(), 'openapi_spec.json');
       fs.writeFileSync(outputPath, specPayloadString, 'utf-8');
-      
-      console.log(`\n[${GREEN}✔${RESET}] OpenAPI compliance validation spec written straight to: ${BOLD}${WHITE}${outputPath}${RESET}\n`);
+      console.log(`\n[${GREEN}✔${RESET}] OpenAPI validation spec written straight to: ${BOLD}${WHITE}${outputPath}${RESET}\n`);
       rl.close();
       return;
     }
 
-    // ==========================================
-    // OPTION 6: DEDUPLICATED TELEMETRY DISCOVERY SUMMARY DASHBOARD
-    // ==========================================
     if (selectedOption === '6') {
-      console.log(`\n[*] Unpacking multi-signal structural validation matrix records...`);
-      console.log(`${CYAN}----------------------------------------------------------------------${RESET}`);
-      
       allAssessments.forEach(ass => {
         const uniqueSecretsTracker = new Set<string>();
         let secretSectionOutput = '';
 
-        // Extract secrets via deterministic expansion matrix rules
         ass.scripts.forEach(script => {
           if (!script.rawContent) return;
           Object.entries(SECRETFINDER_RULES).forEach(([ruleName, pattern]) => {
@@ -160,52 +150,25 @@ async function launchAnalyzerConsole() {
               const uniqueKey = `${ruleName}-${value}`;
               if (!uniqueSecretsTracker.has(uniqueKey)) {
                 uniqueSecretsTracker.add(uniqueKey);
-                secretSectionOutput += `  ├── [${RED}${BOLD}SECRET_EXPOSURE${RESET}] Rule Match: ${YELLOW}${ruleName}${RESET}\n`;
-                secretSectionOutput += `  │   └── Plaintext Token Value: ${BOLD}${WHITE}${value}${RESET}\n`;
+                secretSectionOutput += `  ├── [${RED}${BOLD}SECRET_EXPOSURE${RESET}] Rule Match: ${YELLOW}${ruleName}${RESET}\n  │   └── Plaintext Token Value: ${BOLD}${WHITE}${value}${RESET}\n`;
               }
             }
           });
         });
 
         console.log(`\n🌐 ${BOLD}${WHITE}TARGET SCOPE HOSTNAME:${RESET} ${CYAN}${ass.targetUrl}${RESET}`);
-        
-        // Output framework profiling matrices
         const frameworksMapped = ass.runtimeTaintFlows.filter(f => f.sourceType === 'FRAMEWORK_VERSION');
-        if (frameworksMapped.length > 0) {
-          frameworksMapped.forEach(fw => {
-            console.log(`  ├── [${GREEN}FRAMEWORK_PROFILE${RESET}] ${fw.sinkType} -> Active Running Version Layer: ${BOLD}${WHITE}${fw.actualValue}${RESET}`);
-          });
-        }
-
-        // Output PostMessage telemetry interception streams
-        const postMessageIntercepts = ass.runtimeTaintFlows.filter(f => f.actualValue.includes('POSTMESSAGE_STREAM'));
-        if (postMessageIntercepts.length > 0) {
-          console.log(`  ├── [${MAGENTA}POSTMESSAGE_LISTENERS${RESET}] Intercepted ${postMessageIntercepts.length} dynamic message flow interactions.`);
-        }
-
-        // Output Dynamic DOM XSS verification validation traps alerts
+        frameworksMapped.forEach(fw => console.log(`  ├── [${GREEN}FRAMEWORK_PROFILE${RESET}] ${fw.sinkType} -> Active Version: ${BOLD}${WHITE}${fw.actualValue}${RESET}`));
+        
         const xssViolationsAlerts = ass.runtimeTaintFlows.filter(f => f.sourceType === 'DOM_TAINT' && f.sinkType.includes('DYNAMIC_XSS_VIOLATION'));
-        if (xssViolationsAlerts.length > 0) {
-          xssViolationsAlerts.forEach(xv => {
-            console.log(`  └── [${BG_RED}${BOLD}${WHITE}CRITICAL DYNAMIC XSS ALERT${RESET}] Injection verified reaching client sink. Data: ${RED}${xv.actualValue}${RESET}`);
-          });
-        }
+        xssViolationsAlerts.forEach(xv => console.log(`  └── [${BG_RED}${BOLD}${WHITE}CRITICAL DYNAMIC XSS ALERT${RESET}] Sink reached. Data: ${RED}${xv.actualValue}${RESET}`));
 
-        if (secretSectionOutput.length > 0) {
-          console.log(secretSectionOutput);
-        } else {
-          console.log(`  └── ${GREEN}✔ No plaintext secrets mapped via regex rules inside this asset.${RESET}`);
-        }
+        if (secretSectionOutput.length > 0) console.log(secretSectionOutput);
+        else console.log(`  └── ${GREEN}✔ No plaintext secrets mapped via regex rules inside this asset.${RESET}`);
       });
-
       rl.close();
       return;
     }
-
-    // ==========================================
-    // OPTIONS 1-4: INGEST COMPREHENSIVE CLUSTER DATA
-    // ==========================================
-    console.log(`\n[*] Bundling multi-target telemetry graphs into system prompt history models...`);
 
     let combinedDeduplicatedSecretsBlueprint = '';
     allAssessments.forEach(ass => {
@@ -220,7 +183,7 @@ async function launchAnalyzerConsole() {
             const uniqueKey = `${ass.targetUrl}-${ruleName}-${val}`;
             if (!globalAICheckerSet.has(uniqueKey)) {
               globalAICheckerSet.add(uniqueKey);
-              combinedDeduplicatedSecretsBlueprint += `[Host Target Context: ${ass.targetUrl}] Rule: ${ruleName} | Key Data: ${val}\n`;
+              combinedDeduplicatedSecretsBlueprint += `[Host: ${ass.targetUrl}] Rule: ${ruleName} | Key Data: ${val}\n`;
             }
           }
         });
@@ -235,18 +198,11 @@ Total Historical Scopes In Database: ${allAssessments.length} Active Profiles
 === DEDUPLICATED SECRET DISCOVERIES (ALL SUBDOMAINS CLUSTERED) ===
 ${combinedDeduplicatedSecretsBlueprint.length > 0 ? combinedDeduplicatedSecretsBlueprint : 'No matches logged.'}
 
-=== LIVE INTERCEPTED RUNTIME POSTMESSAGE INTERFACING TELEMETRY ===
-${latestAssessment.runtimeTaintFlows.filter(rf => rf.actualValue.includes('POSTMESSAGE_STREAM')).slice(0, 15).map(rf => `Event Context Data: ${rf.actualValue}`).join('\n')}
-
 === VERIFIED LIVE DYNAMIC DOM XSS VIOLATION LOG TRACES ===
 ${latestAssessment.runtimeTaintFlows.filter(rf => rf.sourceType === 'DOM_TAINT' && rf.sinkType.includes('DYNAMIC_XSS_VIOLATION')).map(rf => `Target Sink: ${rf.sinkType} | Evidence Value: ${rf.actualValue}`).join('\n')}
 `;
 
-    const masterSystemInstruction = `You are an elite Application Security Researcher, Reverse Engineer, and Expert Code Auditor.
-Analyze queries using the attached multi-subdomain asset tracking graph blueprint details:
-${dataGraphBlueprint}
-
-CRITICAL INSTRUCTION: Answer questions direct, conversational and factually based on the context. Asssist the user in auditing postMessage communication data flows, dynamic XSS parameters inputs injections, or API security configurations. Output entirely in professional English.`;
+    const masterSystemInstruction = `You are an elite Application Security Researcher and Expert Code Auditor. Analyze the attached blueprint data:\n${dataGraphBlueprint}\nAssist the user contextually based on findings. Output exclusively in English.`;
 
     let apiKey = '';
     let endpointUrl = '';
@@ -266,8 +222,16 @@ CRITICAL INSTRUCTION: Answer questions direct, conversational and factually base
       endpointUrl = `https://api.cohere.ai/v1/chat`;
     }
 
-    console.log(`\n${BOLD}${GREEN}⚡ CLUSTER MAP CONTEXT BOUNDED: AI Interactive channel initialized smoothly.`);
-    console.log(`👉 All distinct secrets, framework configs, and XSS fuzz traces are loaded. Ask AI now.${RESET}`);
+    const targetHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (selectedOption !== '1') targetHeaders['Authorization'] = `Bearer ${apiKey}`;
+
+    if (!apiKey) {
+      console.error(`\n${RED}${BOLD}❌ API KEY MISSING: Provide corresponding environment variable before connection setup.${RESET}\n`);
+      rl.close();
+      return;
+    }
+
+    console.log(`\n${BOLD}${GREEN}⚡ CLUSTER MAP CONTEXT BOUNDED: AI Channel active. Type 'exit' to quit.`);
 
     const triggerInteractivePromptLoop = () => {
       rl.question(`\n${BOLD}${CYAN}🔬 Ask AI > ${RESET}`, async (userInput) => {
@@ -286,15 +250,40 @@ CRITICAL INSTRUCTION: Answer questions direct, conversational and factually base
           activeLoopPayload = { model: 'command-r-plus', preamble: masterSystemInstruction, message: promptQuery, chat_history: cohereHistory, temperature: 0.2 };
         }
 
+        // 🔥 FIXED: Explicit connection verification logging to output network diagnostic tracking metrics
         try {
           const chatRes = await fetch(endpointUrl, { method: 'POST', headers: targetHeaders, body: JSON.stringify(activeLoopPayload) });
-          const chatJSON: any = await chatRes.json();
-          let chatVerdict = selectedOption === '1' ? chatJSON.candidates?.[0]?.content?.parts?.[0]?.text : selectedOption === '4' ? chatJSON.text : chatJSON.choices?.[0]?.message?.content;
+          
+          if (!chatRes.ok) {
+            const errorPayloadText = await chatRes.text();
+            throw new Error(`Upstream Node Connection Rejected (HTTP ${chatRes.status}): ${errorPayloadText}`);
+          }
 
-          console.log(`\n${GREEN}----------------------------------------------------------------------${RESET}`);
-          console.log(colorizeMarkdownResponse(chatVerdict || ''));
-          console.log(`${GREEN}----------------------------------------------------------------------${RESET}`);
-        } catch (e) {}
+          const chatJSON: any = await chatRes.json();
+          let chatVerdict = '';
+
+          if (selectedOption === '1') chatVerdict = chatJSON.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          else if (selectedOption === '2' || selectedOption === '3') chatVerdict = chatJSON.choices?.[0]?.message?.content || '';
+          else if (selectedOption === '4') chatVerdict = chatJSON.text || '';
+
+          if (!chatVerdict) {
+            console.error(`\n${RED}❌ Empty structure returned from host layout node. Checking fallback logging state.${RESET}`);
+            console.log(JSON.stringify(chatJSON, null, 2));
+          } else {
+            console.log(`\n${GREEN}----------------------------------------------------------------------${RESET}`);
+            console.log(colorizeMarkdownResponse(chatVerdict));
+            console.log(`${GREEN}----------------------------------------------------------------------${RESET}`);
+
+            if (selectedOption === '1') geminiContents.push({ role: 'model', parts: [{ text: chatVerdict }] });
+            else if (selectedOption === '2' || selectedOption === '3') openaiMessages.push({ role: 'assistant', content: chatVerdict });
+            else if (selectedOption === '4') {
+              cohereHistory.push({ role: 'USER', message: promptQuery });
+              cohereHistory.push({ role: 'CHATBOT', message: chatVerdict });
+            }
+          }
+        } catch (chatErr: any) {
+          console.error(`\n${RED}❌ Connection Core Exception: ${chatErr.message}${RESET}\n`);
+        }
         triggerInteractivePromptLoop();
       });
     };
