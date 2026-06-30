@@ -1,9 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import * as readline from 'readline';
 import * as path from 'path';
-import { EnterprisePipelineCoordinator } from './services/enterpriseEngines';
+import * as fs from 'fs';
+import { RiskClassificationEngine } from './services/riskClassificationEngine';
 import { ReportingEngine } from './services/reportingEngine';
-import { ProviderSessionState, Finding } from './types/platform';
 
 const prisma = new PrismaClient();
 
@@ -18,6 +18,26 @@ const CYAN = '\x1b[36m';
 const WHITE = '\x1b[37m';
 
 const BG_RED = '\x1b[41m';
+const BG_DARK = '\x1b[40m';
+
+const SECRETFINDER_RULES: Record<string, RegExp> = {
+  'Google Cloud API Key': /AIza[0-9A-Za-z-_]{35}/g,
+  'AWS Access Key ID': /A[SK]IA[0-9A-Z]{16}/g,
+  'AWS Secret Access Key Pattern': /(?:aws|secret|mock|key|access)(?:_|-| )*(?:key|secret)(?:_|-| )*['"]*[:= ]*['"]*([A-Za-z0-9/+=]{40})['"]/gi,
+  'JSON Web Token (JWT)': /ey[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*/g,
+  'Slack API Token Connection': /xox[baprs]-[0-9a-zA-Z]{10,48}/g,
+  'Stripe Live Secret Key': /sk_live_[0-9a-zA-Z]{24}/g,
+  'GitHub Personal Access Token': /ghp_[0-9a-zA-Z]{36}/g,
+  'Firebase Web API Configuration Key': /AIzaSy[A-Za-z0-9-_]{29}/g,
+  'Facebook OAuth Access Token String': /EAACEdEose0cBA[0-9A-Za-z]+/g,
+  'Twilio API Authentication SID Token': /AC[a-f0-9]{32}/g,
+  'Mailgun API Cloud Access Private Key': /key-[0-9a-zA-Z]{32}/g,
+  'Heroku Platform Infrastructure API Key': /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g,
+  'Database Target Connection URI String': /(?:mongodb|postgresql|mysql|redis):\/\/([^@\s]+):([^@\s]+)@([^\s]+)/gi,
+  'Asymmetric Cryptographic Private PEM Block': /-----BEGIN [A-Z]+ PRIVATE KEY-----/g,
+  'Exposed Credentials Pattern': /(password\s*[`=:\"]+\s*[^\s\']+|pwd\s*[`=:\"]*\s*[^\s\']+)/gi,
+  'Hardcoded Application Token/Secret Catch-All': /(?:strapi|token|auth|key|secret|config|credential)[a-zA-Z0-9_-]*\s*[`=:\"]+\s*['"]([a-zA-Z0-9-_~.+=]{24,})['"]/gi
+};
 
 function colorizeMarkdownResponse(text: string): string {
   return text
@@ -42,296 +62,244 @@ function colorizeMarkdownResponse(text: string): string {
     .join('\n');
 }
 
-async function launchAnalyzerConsole() {
-  const latestAssessment = await prisma.assessment.findFirst({
-    orderBy: { createdAt: 'desc' },
-    include: { 
-      endpoints: true, scripts: true, functions: true, taintFlows: true, 
-      cryptoOperations: true, runtimeTaintFlows: true, domArtifacts: true, 
-      browserStates: true, executionGraphs: true
-    }
+// ====================================================================
+// OPENAPI SPECIFICATION SCHEMA COMPILER VECTOR GENERATOR
+// ====================================================================
+function compileOpenAPISpecificationFile(endpoints: any[]): string {
+  const swaggerSkeleton: any = {
+    openapi: '3.0.0',
+    info: { title: 'Reverse Engineered Client API Map Blueprint Spec', version: '1.0.0', description: 'Auto-compiled schema via intercepted application telemetry network parameters.' },
+    paths: {}
+  };
+
+  endpoints.forEach(e => {
+    try {
+      const urlObject = new URL(e.url);
+      const pathname = urlObject.pathname || '/';
+      const methodLower = e.method.toLowerCase();
+
+      if (!swaggerSkeleton.paths[pathname]) swaggerSkeleton.paths[pathname] = {};
+      swaggerSkeleton.paths[pathname][methodLower] = {
+        summary: `Auto-Harvested Client Interaction Flow Endpoint Resource Target`,
+        responses: { '200': { description: 'Successful transaction context response mapping profile verification capture.' } }
+      };
+    } catch (err) {}
   });
 
-  if (!latestAssessment) {
-    console.error(`\n${RED}${BOLD}❌ ABORT: No baseline database logs located.${RESET}\n`);
+  return JSON.stringify(swaggerSkeleton, null, 2);
+}
+
+async function launchAnalyzerConsole() {
+  const allAssessments = await prisma.assessment.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: { endpoints: true, scripts: true, runtimeTaintFlows: true, domArtifacts: true, browserStates: true, executionGraphs: true }
+  });
+
+  if (!allAssessments || allAssessments.length === 0) {
+    console.error(`\n${RED}${BOLD}❌ ABORT: No assessment database records found.${RESET}\n`);
     return;
   }
 
-  console.log(`\n[*] Executing local modular enterprise data pipeline algorithms...`);
-  const scriptInputs = latestAssessment.scripts.map(s => ({ url: s.url, content: s.rawContent }));
-  const pipelineCoordinator = new EnterprisePipelineCoordinator();
-  const generatedPipelineFindings = await pipelineCoordinator.runOrchestration(scriptInputs);
-
-  const activeSessionState: ProviderSessionState = {
-    conversationHistory: [],
-    sessionMemory: {},
-    runtimeTelemetry: [],
-    collectedFindings: generatedPipelineFindings,
-    assessmentContext: { targetUrl: latestAssessment.targetUrl, assessmentId: latestAssessment.id }
-  };
-
+  const latestAssessment = allAssessments[0];
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
   console.log(`\n${CYAN}======================================================================${RESET}`);
-  console.log(`${BOLD}${CYAN}🔥 ENTERPRISE CLIENT-SIDE MULTI-PROVIDER GRAPH INTERACTIVE ENGINE${RESET}`);
+  console.log(`${BOLD}${CYAN}🔥 SECVENTRA UNIFIED BULK AUDITING & AD-HOC INVESTIGATION CONSOLE CORE${RESET}`);
   console.log(`======================================================================${RESET}`);
-  console.log(`${BOLD}Target Assessment Scope Domain :${RESET} ${YELLOW}${activeSessionState.assessmentContext.targetUrl}${RESET}`);
-  console.log(`${BOLD}Enterprise Processed Findings  :${RESET} ${GREEN}${activeSessionState.collectedFindings.length} Items Loaded${RESET}`);
+  console.log(`${BOLD}Active Tracked Assessments :${RESET} ${GREEN}${allAssessments.length} Clusters Loaded${RESET}`);
+  console.log(`${BOLD}Recent Scanning Focus      :${RESET} ${YELLOW}${latestAssessment.targetUrl}${RESET}`);
   console.log(`${CYAN}----------------------------------------------------------------------${RESET}`);
-  
-  let selectedProviderNode = '1';
+  console.log(`${BOLD}${WHITE}Select AI Provider Module Node or Offline Reporting Action:${RESET}`);
+  console.log(` [1] ${BOLD}${CYAN}Google Gemini 2.5 Pro Core${RESET} (Context-Cached Shell Framework)`);
+  console.log(` [2] ${BOLD}${GREEN}Groq Cloud Compute Grid${RESET} (Llama 3 70B Fast Chat⚡)`);
+  console.log(` [3] ${BOLD}${MAGENTA}Mistral Large Infrastructure AI Core${RESET} (Direct Chat Mode)`);
+  console.log(` [4] ${BOLD}${BLUE}Cohere Command-R Plus Enterprise Cluster${RESET}`);
+  console.log(` [5] ${BOLD}${YELLOW}Compile & Export Auto-Generated OpenAPI Swagger Specs JSON Schema 📄${RESET}`);
+  console.log(` [6] ${BOLD}${WHITE}${BG_RED} DISPLAY MASTER TELEMETRY COMPONENT MAPS PER ACTIVE TARGET SCOPING BLOCK 🔍 ${RESET}`);
+  console.log(`${CYAN}======================================================================${RESET}`);
 
-  const displayProviderSelectionGrid = () => {
-    console.log(`\n${BOLD}${WHITE}Select Active Security Intelligence Provider Node:${RESET}`);
-    console.log(` [1] ${BOLD}${CYAN}Google Gemini 2.5 Pro Core (Massive Context 🔥)${RESET}`);
-    console.log(` [2] ${BOLD}${GREEN}Groq Cloud Infrastructure Grid (Llama 3.3 Strict Bound ⚡)${RESET}`);
-    console.log(` [3] ${BOLD}${MAGENTA}Mistral Large Infrastructure AI Core${RESET}`);
-    console.log(` [4] ${BOLD}${BLUE}Cohere Command-R Plus Enterprise Cluster${RESET}`);
-    console.log(` [5] ${BOLD}${YELLOW}Export Generated Enterprise Reports to Disk Storage Paths${RESET}`);
-    console.log(`${CYAN}----------------------------------------------------------------------${RESET}`);
-  };
+  rl.question(`\n${BOLD}${WHITE}⚙ Choose Analytics Processing Vector Target (1-6): ${RESET}`, async (choice) => {
+    const selectedOption = choice.trim();
 
-  const executeReportingExportSequence = () => {
-    console.log(`\n[*] Dumping compiled enterprise report formats out-of-band to disk storage...`);
-    const rootPath = process.cwd();
-    
-    ReportingEngine.exportToJSON(path.join(rootPath, 'security_report.json'), activeSessionState.collectedFindings);
-    ReportingEngine.exportToJSONL(path.join(rootPath, 'security_report.jsonl'), activeSessionState.collectedFindings);
-    ReportingEngine.exportToCSV(path.join(rootPath, 'security_report.csv'), activeSessionState.collectedFindings);
-    ReportingEngine.exportToMarkdown(path.join(rootPath, 'security_report.md'), activeSessionState.collectedFindings, activeSessionState.assessmentContext.targetUrl);
-    ReportingEngine.exportToHTML(path.join(rootPath, 'security_report.html'), activeSessionState.collectedFindings, activeSessionState.assessmentContext.targetUrl);
-
-    console.log(`[${GREEN}✔${RESET}] Clean JSON, JSONL, CSV, Markdown, and HTML templates exported to root directory.`);
-  };
-
-  const runConversationalLoopChannel = () => {
-    displayProviderSelectionGrid();
-    
-    rl.question(`\n${BOLD}${WHITE}⚙ Select Provider Target Node or Action (1-5): ${RESET}`, async (choice) => {
-      const inputNode = choice.trim();
+    // ==========================================
+    // OPTION 5: GENERATE OPENAPI SCHEMAS OUT-OF-BAND
+    // ==========================================
+    if (selectedOption === '5') {
+      console.log(`\n[*] Compiling endpoints across all scanned subdomains into Swagger spec...`);
+      const collectiveEndpoints: any[] = [];
+      allAssessments.forEach(a => collectiveEndpoints.push(...a.endpoints));
       
-      if (inputNode === '5') {
-        executeReportingExportSequence();
-        runConversationalLoopChannel();
-        return;
-      }
+      const specPayloadString = compileOpenAPISpecificationFile(collectiveEndpoints);
+      const outputPath = path.join(process.cwd(), 'openapi_spec.json');
+      fs.writeFileSync(outputPath, specPayloadString, 'utf-8');
+      
+      console.log(`\n[${GREEN}✔${RESET}] OpenAPI compliance validation spec written straight to: ${BOLD}${WHITE}${outputPath}${RESET}\n`);
+      rl.close();
+      return;
+    }
 
-      if (['1', '2', '3', '4'].includes(inputNode)) {
-        selectedProviderNode = inputNode;
-        const providerNames = { '1': 'Google Gemini', '2': 'Groq Cloud', '3': 'Mistral Core', '4': 'Cohere Cluster' };
-        console.log(`\n[${GREEN}✔${RESET}] Switched channel connection node to: ${BOLD}${GREEN}${providerNames[selectedProviderNode as keyof typeof providerNames]}${RESET}`);
-        startInteractiveChatShell();
-        return;
-      }
+    // ==========================================
+    // OPTION 6: DEDUPLICATED TELEMETRY DISCOVERY SUMMARY DASHBOARD
+    // ==========================================
+    if (selectedOption === '6') {
+      console.log(`\n[*] Unpacking multi-signal structural validation matrix records...`);
+      console.log(`${CYAN}----------------------------------------------------------------------${RESET}`);
+      
+      allAssessments.forEach(ass => {
+        const uniqueSecretsTracker = new Set<string>();
+        let secretSectionOutput = '';
 
-      console.error(`${RED}Invalid selection index. Choose 1-5.${RESET}`);
-      runConversationalLoopChannel();
-    });
-  };
+        // Extract secrets via deterministic expansion matrix rules
+        ass.scripts.forEach(script => {
+          if (!script.rawContent) return;
+          Object.entries(SECRETFINDER_RULES).forEach(([ruleName, pattern]) => {
+            pattern.lastIndex = 0;
+            let match;
+            while ((match = pattern.exec(script.rawContent!)) !== null) {
+              const value = match[0].trim();
+              const uniqueKey = `${ruleName}-${value}`;
+              if (!uniqueSecretsTracker.has(uniqueKey)) {
+                uniqueSecretsTracker.add(uniqueKey);
+                secretSectionOutput += `  ├── [${RED}${BOLD}SECRET_EXPOSURE${RESET}] Rule Match: ${YELLOW}${ruleName}${RESET}\n`;
+                secretSectionOutput += `  │   └── Plaintext Token Value: ${BOLD}${WHITE}${value}${RESET}\n`;
+              }
+            }
+          });
+        });
 
-  const startInteractiveChatShell = () => {
-    console.log(`\n${BOLD}${GREEN}💬 Conversational shell active. Type your technical question or type '${RED}switch${GREEN}' to swap provider nodes.${RESET}`);
-    
-    const askQuestion = () => {
-      rl.question(`\n${BOLD}${CYAN}🔬 Ask AI (${selectedProviderNode === '1' ? 'Gemini' : selectedProviderNode === '2' ? 'Groq' : selectedProviderNode === '3' ? 'Mistral' : 'Cohere'}) > ${RESET}`, async (userInput) => {
-        const query = userInput.trim();
-
-        if (query.toLowerCase() === 'exit') {
-          rl.close();
-          return;
-        }
-
-        if (query.toLowerCase() === 'switch') {
-          runConversationalLoopChannel();
-          return;
-        }
-
-        if (!query) { askQuestion(); return; }
-
-        console.log(`[*] Submitting prioritized telemetry graph payloads across provider channels...`);
-
-        // ✅ OPTIMIZED: Adjusted allocation budget layout to avoid overloading Mistral/Groq pipelines
-        let budget = { findings: 20, crypto: 15, taint: 15, runtime: 15, dom: 5, states: 2, graphs: 10, scripts: 5 };
+        console.log(`\n🌐 ${BOLD}${WHITE}TARGET SCOPE HOSTNAME:${RESET} ${CYAN}${ass.targetUrl}${RESET}`);
         
-        if (selectedProviderNode === '1') {
-          budget = { findings: 400, crypto: 300, taint: 300, runtime: 400, dom: 150, states: 20, graphs: 200, scripts: 40 };
-        } else if (selectedProviderNode === '3' || selectedProviderNode === '4') {
-          budget = { findings: 50, crypto: 35, taint: 35, runtime: 40, dom: 15, states: 5, graphs: 30, scripts: 10 };
+        // Output framework profiling matrices
+        const frameworksMapped = ass.runtimeTaintFlows.filter(f => f.sourceType === 'FRAMEWORK_VERSION');
+        if (frameworksMapped.length > 0) {
+          frameworksMapped.forEach(fw => {
+            console.log(`  ├── [${GREEN}FRAMEWORK_PROFILE${RESET}] ${fw.sinkType} -> Active Running Version Layer: ${BOLD}${WHITE}${fw.actualValue}${RESET}`);
+          });
         }
 
-        // Severity and security ranking prioritization filters
-        const prioritizedFindings = [...activeSessionState.collectedFindings].sort((a, b) => {
-          const weights: Record<string, number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1, INFORMATIONAL: 0 };
-          return (weights[b.severity] || 0) - (weights[a.severity] || 0);
-        }).slice(0, budget.findings);
+        // Output PostMessage telemetry interception streams
+        const postMessageIntercepts = ass.runtimeTaintFlows.filter(f => f.actualValue.includes('POSTMESSAGE_STREAM'));
+        if (postMessageIntercepts.length > 0) {
+          console.log(`  ├── [${MAGENTA}POSTMESSAGE_LISTENERS${RESET}] Intercepted ${postMessageIntercepts.length} dynamic message flow interactions.`);
+        }
 
-        const prioritizedEndpoints = [...latestAssessment.endpoints].sort((a, b) => {
-          const highRiskPattern = /auth|login|api|v1|v2|token|credential|pay/i;
-          const bMatch = highRiskPattern.test(b.url) ? 1 : 0;
-          const aMatch = highRiskPattern.test(a.url) ? 1 : 0;
-          if (bMatch !== aMatch) return bMatch - aMatch;
-          return b.method.localeCompare(a.method);
-        }).slice(0, budget.findings);
+        // Output Dynamic DOM XSS verification validation traps alerts
+        const xssViolationsAlerts = ass.runtimeTaintFlows.filter(f => f.sourceType === 'DOM_TAINT' && f.sinkType.includes('DYNAMIC_XSS_VIOLATION'));
+        if (xssViolationsAlerts.length > 0) {
+          xssViolationsAlerts.forEach(xv => {
+            console.log(`  └── [${BG_RED}${BOLD}${WHITE}CRITICAL DYNAMIC XSS ALERT${RESET}] Injection verified reaching client sink. Data: ${RED}${xv.actualValue}${RESET}`);
+          });
+        }
 
-        const prioritizedCrypto = [...latestAssessment.cryptoOperations].sort((a, b) => {
-          const highRiskCrypto = /aes|rsa|gcm|cbc|encrypt|decrypt/i;
-          const bMatch = highRiskCrypto.test(b.type + b.mode) ? 1 : 0;
-          const aMatch = highRiskCrypto.test(a.type + a.mode) ? 1 : 0;
-          return bMatch - aMatch;
-        }).slice(0, budget.crypto);
+        if (secretSectionOutput.length > 0) {
+          console.log(secretSectionOutput);
+        } else {
+          console.log(`  └── ${GREEN}✔ No plaintext secrets mapped via regex rules inside this asset.${RESET}`);
+        }
+      });
 
-        const prioritizedRuntime = [...latestAssessment.runtimeTaintFlows].sort((a, b) => {
-          const highRiskLayers: Record<string, number> = { FORMDATA_APPEND: 3, DOM_TAINT: 2, FETCH_INTERCEPT: 1 };
-          return (highRiskLayers[b.sourceType] || 0) - (highRiskLayers[a.sourceType] || 0);
-        }).slice(0, budget.runtime);
+      rl.close();
+      return;
+    }
 
-        const analysisBlueprintPayload = `
-=== MASTER CONTEXT AUTOMATION BLUEPRINT GRAPH ===
-Target App Domain Domain Scope: ${activeSessionState.assessmentContext.targetUrl}
+    // ==========================================
+    // OPTIONS 1-4: INGEST COMPREHENSIVE CLUSTER DATA
+    // ==========================================
+    console.log(`\n[*] Bundling multi-target telemetry graphs into system prompt history models...`);
 
-=== PRIORITIZED APPLICATION SOURCE SCRIPTS INVENTORY ===
-${latestAssessment.scripts.slice(0, budget.scripts).map(s => `[FILE_NODE] URL: ${s.url} | Content Type: ${s.type} | Size: ${s.rawContent?.length || 0} bytes`).join('\n')}
+    let combinedDeduplicatedSecretsBlueprint = '';
+    allAssessments.forEach(ass => {
+      const globalAICheckerSet = new Set<string>();
+      ass.scripts.forEach(script => {
+        if (!script.rawContent) return;
+        Object.entries(SECRETFINDER_RULES).forEach(([ruleName, pattern]) => {
+          pattern.lastIndex = 0;
+          let match;
+          while ((match = pattern.exec(script.rawContent!)) !== null) {
+            const val = match[0].trim();
+            const uniqueKey = `${ass.targetUrl}-${ruleName}-${val}`;
+            if (!globalAICheckerSet.has(uniqueKey)) {
+              globalAICheckerSet.add(uniqueKey);
+              combinedDeduplicatedSecretsBlueprint += `[Host Target Context: ${ass.targetUrl}] Rule: ${ruleName} | Key Data: ${val}\n`;
+            }
+          }
+        });
+      });
+    });
 
-=== CRITICAL SECURITY FINDINGS TREE (SORTED BY SEVERITY) ===
-${prioritizedFindings.map((f, idx) => `[F-${idx + 1}] Title: ${f.title} | Type: ${f.type} | File: ${f.location.filePath} | Raw Context Data: ${f.raw}`).join('\n')}
+    const dataGraphBlueprint = `
+=== MASTER BATCH TARGET INFRASTRUCTURE CONTEXT ===
+Recent Audited Domain Focused Origin: ${latestAssessment.targetUrl}
+Total Historical Scopes In Database: ${allAssessments.length} Active Profiles
 
-=== RECONNAISSANCE ROUTER ENDPOINTS MATRIX (HIGH RISK FIRST) ===
-${prioritizedEndpoints.map(e => `[ENDPOINT] Method: ${e.method} | URL Link Path Target: ${e.url} | File Mapping Node: ${e.sourceFile}`).join('\n')}
+=== DEDUPLICATED SECRET DISCOVERIES (ALL SUBDOMAINS CLUSTERED) ===
+${combinedDeduplicatedSecretsBlueprint.length > 0 ? combinedDeduplicatedSecretsBlueprint : 'No matches logged.'}
 
-=== CAPTURED CRYPTOGRAPHIC CORE OPERATIONS (ENCRYPTION LOGICS) ===
-${prioritizedCrypto.map(c => `[CRYPTO_ENGINE_LOGIC] Cipher Type: ${c.type} | Operational Mode: ${c.mode} | Key Source: ${c.keySource} | IV Structure: ${c.ivSource} | Outbound Destination Sink: ${c.destination} | Source Scope Target Chunk: ${c.sourceFile}`).join('\n')}
+=== LIVE INTERCEPTED RUNTIME POSTMESSAGE INTERFACING TELEMETRY ===
+${latestAssessment.runtimeTaintFlows.filter(rf => rf.actualValue.includes('POSTMESSAGE_STREAM')).slice(0, 15).map(rf => `Event Context Data: ${rf.actualValue}`).join('\n')}
 
-=== STATIC SOURCE-TO-SINK TAINT DATA FLOW DIAGRAM LOGS ===
-${latestAssessment.taintFlows.slice(0, budget.taint).map(t => `[STATIC_TAINT_FLOW] Variable [${t.sourceType}] channels directly into Critical Destination Sink [${t.sinkType}] along vector flow trajectory: ${t.flowPath}`).join('\n')}
-
-=== REAL-TIME RUNTIME INSTRUMENTATION TELEMETRY CAPTURES (PLAIN-TEXT INJECTIONS FIRST) ===
-${prioritizedRuntime.map(rf => `[RUNTIME_INTERCEPT_EVENT] Layer: ${rf.sourceType} | Interface Context: ${rf.sinkType} | String Real Value Captured: ${rf.actualValue}`).join('\n')}
-
-=== WEB ELEMENT DOM HTML LAYOUT INTELLIGENCE ===
-${latestAssessment.domArtifacts.slice(0, budget.dom).map(d => `[DOM_ELEMENT_ARTIFACT] Type: ${d.elementType} | Raw Node Layout Markings: ${d.elementHtml}`).join('\n')}
-
-=== EXTRACTED BROWSER TRANS-MEMORY GLOBAL OBJECT STATES ===
-${latestAssessment.browserStates.slice(0, budget.states).map(b => `[GLOBAL_WINDOW_STATE] Object Key Indicator: ${b.globalObject} | String Payload Content Blob: ${b.stateValue.substring(0, 600)}`).join('\n')}
-
-=== WEBPACK CHUNKS DEPENDENCY GRAPH PATHS ===
-${latestAssessment.executionGraphs.slice(0, budget.graphs).map(eg => `[WEBPACK_CHUNKS_DEPENDENCY] Target Module Identity: ${eg.identifier} | Action Reference Route: ${eg.dependencies}`).join('\n')}
+=== VERIFIED LIVE DYNAMIC DOM XSS VIOLATION LOG TRACES ===
+${latestAssessment.runtimeTaintFlows.filter(rf => rf.sourceType === 'DOM_TAINT' && rf.sinkType.includes('DYNAMIC_XSS_VIOLATION')).map(rf => `Target Sink: ${rf.sinkType} | Evidence Value: ${rf.actualValue}`).join('\n')}
 `;
 
-        const masterSystemInstruction = `You are an elite Application Security Researcher, Reverse Engineer, and Enterprise Code Auditor.
-You have complete, direct, and unrestricted access to the application's structural graphs, prioritized variables, cryptographic blocks, and full asset telemetry provided below:
-${analysisBlueprintPayload}
+    const masterSystemInstruction = `You are an elite Application Security Researcher, Reverse Engineer, and Expert Code Auditor.
+Analyze queries using the attached multi-subdomain asset tracking graph blueprint details:
+${dataGraphBlueprint}
 
-MANDATORY RESPONSE CONSTRAINTS:
-1. NEVER state, imply, or suggest that you do not have direct access to the files, code, or application parameters. You possess the direct system logs and code extraction graphs. Act as if the target codebase is loaded natively in your current workspace environment.
-2. All analytical report schemas, logic descriptions, and explanations MUST be output entirely in clear, professional English. Do not include any Hindi text or phrasing under any circumstances. Mark verified items using strict confirmation tags: [CONFIRMED], [LIKELY], or [POSSIBLE].`;
+CRITICAL INSTRUCTION: Answer questions direct, conversational and factually based on the context. Asssist the user in auditing postMessage communication data flows, dynamic XSS parameters inputs injections, or API security configurations. Output entirely in professional English.`;
 
-        activeSessionState.conversationHistory.push({ role: 'user', content: query });
+    let apiKey = '';
+    let endpointUrl = '';
+    let geminiContents: any[] = [];
+    let openaiMessages: any[] = [];
+    let cohereHistory: any[] = [];
 
-        let apiKey = '';
-        let endpointUrl = '';
-        let requestPayload: any = {};
+    if (selectedOption === '1') {
+      apiKey = process.env.GEMINI_API_KEY || '';
+      endpointUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`;
+    } else if (selectedOption === '2' || selectedOption === '3') {
+      apiKey = selectedOption === '2' ? (process.env.GROQ_API_KEY || '') : (process.env.MISTRAL_API_KEY || '');
+      endpointUrl = selectedOption === '2' ? 'https://api.groq.com/openai/v1/chat/completions' : 'https://api.mistral.ai/v1/chat/completions';
+      openaiMessages.push({ role: 'system', content: masterSystemInstruction });
+    } else if (selectedOption === '4') {
+      apiKey = process.env.COHERE_API_KEY || '';
+      endpointUrl = `https://api.cohere.ai/v1/chat`;
+    }
 
-        if (selectedProviderNode === '1') {
-          apiKey = (process.env.GEMINI_API_KEY || '').trim();
-          endpointUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`;
-          
-          const standardHistoryParts = activeSessionState.conversationHistory.map(h => ({
-            role: h.role === 'user' ? 'user' : 'model',
-            parts: [{ text: h.content }]
-          }));
+    console.log(`\n${BOLD}${GREEN}⚡ CLUSTER MAP CONTEXT BOUNDED: AI Interactive channel initialized smoothly.`);
+    console.log(`👉 All distinct secrets, framework configs, and XSS fuzz traces are loaded. Ask AI now.${RESET}`);
 
-          requestPayload = {
-            system_instruction: { parts: [{ text: masterSystemInstruction }] },
-            contents: standardHistoryParts
-          };
-        } else if (selectedProviderNode === '2' || selectedProviderNode === '3') {
-          apiKey = selectedProviderNode === '2' ? (process.env.GROQ_API_KEY || '').trim() : (process.env.MISTRAL_API_KEY || '').trim();
-          endpointUrl = selectedProviderNode === '2' ? 'https://api.groq.com/openai/v1/chat/completions' : 'https://api.mistral.ai/v1/chat/completions';
-          
-          const messages = [{ role: 'system', content: masterSystemInstruction }];
-          activeSessionState.conversationHistory.forEach(h => {
-            messages.push({ role: h.role, content: h.content });
-          });
+    const triggerInteractivePromptLoop = () => {
+      rl.question(`\n${BOLD}${CYAN}🔬 Ask AI > ${RESET}`, async (userInput) => {
+        const promptQuery = userInput.trim();
+        if (promptQuery.toLowerCase() === 'exit') { rl.close(); return; }
+        if (!promptQuery) { triggerInteractivePromptLoop(); return; }
 
-          requestPayload = {
-            model: selectedProviderNode === '2' ? 'llama-3.3-70b-versatile' : 'mistral-large-latest',
-            messages,
-            temperature: 0.2
-          };
-        } else if (selectedProviderNode === '4') {
-          apiKey = (process.env.COHERE_API_KEY || '').trim();
-          endpointUrl = `https://api.cohere.ai/v1/chat`;
-          
-          const history = activeSessionState.conversationHistory.slice(0, -1).map(h => ({
-            role: h.role === 'user' ? 'USER' : 'CHATBOT',
-            message: h.content
-          }));
-
-          requestPayload = {
-            model: 'command-r-plus',
-            preamble: masterSystemInstruction,
-            message: query,
-            chat_history: history,
-            temperature: 0.2
-          };
+        let activeLoopPayload: any = {};
+        if (selectedOption === '1') {
+          geminiContents.push({ role: 'user', parts: [{ text: promptQuery }] });
+          activeLoopPayload = { system_instruction: { parts: [{ text: masterSystemInstruction }] }, contents: geminiContents };
+        } else if (selectedOption === '2' || selectedOption === '3') {
+          openaiMessages.push({ role: 'user', content: promptQuery });
+          activeLoopPayload = { model: selectedOption === '2' ? 'llama3-70b-8192' : 'mistral-large-latest', messages: openaiMessages, temperature: 0.2 };
+        } else if (selectedOption === '4') {
+          activeLoopPayload = { model: 'command-r-plus', preamble: masterSystemInstruction, message: promptQuery, chat_history: cohereHistory, temperature: 0.2 };
         }
-
-        const targetHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (selectedProviderNode !== '1') targetHeaders['Authorization'] = `Bearer ${apiKey}`;
-
-        // ✅ FIXED: Expanded time matrix boundaries from 30s to 60s for Mistral operations
-        const controller = new AbortController();
-        const networkTimeoutTrigger = setTimeout(() => controller.abort(), 60000);
-
-        const startTime = Date.now();
 
         try {
-          const response = await fetch(endpointUrl, { 
-            method: 'POST', 
-            headers: targetHeaders, 
-            body: JSON.stringify(requestPayload),
-            signal: controller.signal
-          });
-          
-          clearTimeout(networkTimeoutTrigger);
-
-          if (!response.ok) {
-            const errorBody = await response.text();
-            throw new Error(`Status ${response.status} -> ${errorBody}`);
-          }
-
-          const rawJSON: any = await response.json();
-          let responseText = '';
-
-          if (selectedProviderNode === '1') responseText = rawJSON.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          else if (selectedProviderNode === '2' || selectedProviderNode === '3') responseText = rawJSON.choices?.[0]?.message?.content || '';
-          else if (selectedProviderNode === '4') responseText = rawJSON.text || '';
-
-          activeSessionState.runtimeTelemetry.push({ provider: selectedProviderNode, latency: Date.now() - startTime, timestamp: Date.now() });
-          activeSessionState.conversationHistory.push({ role: 'assistant', content: responseText });
+          const chatRes = await fetch(endpointUrl, { method: 'POST', headers: targetHeaders, body: JSON.stringify(activeLoopPayload) });
+          const chatJSON: any = await chatRes.json();
+          let chatVerdict = selectedOption === '1' ? chatJSON.candidates?.[0]?.content?.parts?.[0]?.text : selectedOption === '4' ? chatJSON.text : chatJSON.choices?.[0]?.message?.content;
 
           console.log(`\n${GREEN}----------------------------------------------------------------------${RESET}`);
-          console.log(colorizeMarkdownResponse(responseText));
+          console.log(colorizeMarkdownResponse(chatVerdict || ''));
           console.log(`${GREEN}----------------------------------------------------------------------${RESET}`);
-
-        } catch (err: any) {
-          clearTimeout(networkTimeoutTrigger);
-          if (err.name === 'AbortError') {
-            const outNode = selectedProviderNode === '2' ? 'Groq' : selectedProviderNode === '3' ? 'Mistral' : 'Cohere';
-            console.error(`\n${RED}❌ TIMEOUT CRITICAL: Upstream Node (${outNode}) failed to deliver a response packet within the strict 60-second optimization matrix.${RESET}\n`);
-          } else {
-            console.error(`\n${RED}❌ Upstream transaction request dropped: ${err.message}${RESET}\n`);
-          }
-        }
-
-        askQuestion();
+        } catch (e) {}
+        triggerInteractivePromptLoop();
       });
     };
-
-    askQuestion();
-  };
-
-  runConversationalLoopChannel();
+    triggerInteractivePromptLoop();
+  });
 }
 
 launchAnalyzerConsole().catch(console.error);

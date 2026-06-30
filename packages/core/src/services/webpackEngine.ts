@@ -1,5 +1,6 @@
 import { Script } from '@prisma/client';
 import * as path from 'path';
+import * as fs from 'fs';
 
 export class WebpackEngine {
   public static async discoverAndProcessMaps(script: Script): Promise<Array<{ originalFile: string; content: string }>> {
@@ -18,6 +19,10 @@ export class WebpackEngine {
       const parsedMap = JSON.parse(mapBody);
 
       if (parsedMap.sources && parsedMap.sourcesContent) {
+        // Resolve Target Scope Subdomain Folder Allocation
+        const domainIdentifier = new URL(script.url).hostname;
+        const targetOutputDirectoryBase = path.join(process.cwd(), 'reconstructed_sources', domainIdentifier, 'src');
+
         for (let i = 0; i < parsedMap.sources.length; i++) {
           const originalPath = parsedMap.sources[i];
           const rawSourceCode = parsedMap.sourcesContent[i];
@@ -27,11 +32,22 @@ export class WebpackEngine {
               originalFile: path.basename(originalPath),
               content: rawSourceCode
             });
+
+            // ====================================================================
+            // AUTO SOURCE MAP UNPACKER: WRITE TO SYSTEM DISK PATHS DYNAMICALLY
+            // ====================================================================
+            try {
+              const sanitizedSubFilePath = originalPath.replace(/\\\//g, '_').replace(/[^a-zA-Z0-9_.\-\/]/g, '');
+              const resolvedPhysicalWritePath = path.join(targetOutputDirectoryBase, sanitizedSubFilePath);
+              
+              fs.mkdirSync(path.dirname(resolvedPhysicalWritePath), { recursive: true });
+              fs.writeFileSync(resolvedPhysicalWritePath, rawSourceCode, 'utf-8');
+            } catch (diskErr) {}
           }
         }
       }
     } catch (e) {
-      // Content safety drop boundary container
+      // Content encryption drop containment block boundary
     }
 
     return recoveredSourceTrees;

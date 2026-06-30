@@ -5,6 +5,8 @@ export class InstrumentationEngine {
   public static async injectSecurityHooks(page: Page): Promise<void> {
     await page.addInitScript(() => {
       (window as any)._runtimeTelemetryGrid = [];
+      (window as any)._postMessageLog = [];
+      (window as any)._xssFuzzViolations = [];
 
       const logEvent = (layer: RuntimeTelemetryEvent['layer'], meta: string, payload: any) => {
         try {
@@ -18,6 +20,55 @@ export class InstrumentationEngine {
         } catch (e) {}
       };
 
+      // ====================================================================
+      // 1. AUTOMATED POSTMESSAGE TRACKER & AUDITOR
+      // ====================================================================
+      try {
+        window.addEventListener('message', (event) => {
+          const streamCapture = {
+            origin: event.origin,
+            data: event.data,
+            hasHandler: window.onmessage ? true : false,
+            timestamp: Date.now()
+          };
+          (window as any)._postMessageLog.push(streamCapture);
+          logEvent('WEBSOCKET_INTERCEPT', `[POSTMESSAGE_STREAM] Received from Origin: ${event.origin}`, streamCapture);
+        });
+      } catch (e) {}
+
+      // ====================================================================
+      // 2. ACTIVE PARAMETER FUZZING FOR DYNAMIC DOM XSS DETECTION (SINK HOOKS)
+      // ====================================================================
+      try {
+        const originalInnerHTMLDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+        if (originalInnerHTMLDescriptor && originalInnerHTMLDescriptor.set) {
+          Object.defineProperty(Element.prototype, 'innerHTML', {
+            set: function (val) {
+              if (typeof val === 'string' && (val.includes('secventra_trace') || val.includes('secventra_hash'))) {
+                const alertPayload = { sink: 'innerHTML', value: val, stack: new Error().stack };
+                (window as any)._xssFuzzViolations.push(alertPayload);
+                logEvent('DOM_TAINT', `[DYNAMIC_XSS_VIOLATION] Fuzz string reached innerHTML sink!`, alertPayload);
+              }
+              return originalInnerHTMLDescriptor.set!.call(this, val);
+            },
+            get: originalInnerHTMLDescriptor.get
+          });
+        }
+
+        const originalWrite = document.write;
+        document.write = function (content) {
+          if (typeof content === 'string' && (content.includes('secventra_trace') || content.includes('secventra_hash'))) {
+            const alertPayload = { sink: 'document.write', value: content, stack: new Error().stack };
+            (window as any)._xssFuzzViolations.push(alertPayload);
+            logEvent('DOM_TAINT', `[DYNAMIC_XSS_VIOLATION] Fuzz string reached document.write sink!`, alertPayload);
+          }
+          return originalWrite.apply(this, arguments as any);
+        };
+      } catch (e) {}
+
+      // ====================================================================
+      // 3. CORE RUNTIME DATA CAPTURE ACCELERATORS
+      // ====================================================================
       try {
         const originalValueDescriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
         if (originalValueDescriptor && originalValueDescriptor.set) {
@@ -36,17 +87,9 @@ export class InstrumentationEngine {
       } catch (e) {}
 
       const originalAppend = FormData.prototype.append;
-      FormData.prototype.append = function (name: string, value: string | Blob, filename?: string) {
-        if (typeof name === 'string' && (name.toLowerCase().includes('pass') || name.toLowerCase().includes('otp') || name.toLowerCase().includes('token'))) {
-          try {
-            const serializedPayload = typeof value === 'object' ? 'Binary Blob/File Asset Reference' : String(value);
-            (window as any)._runtimeTelemetryGrid.push({
-              layer: 'FORMDATA_APPEND',
-              meta: `FormData Boundary Appended Key Name Reference: ${name}`,
-              payload: serializedPayload.substring(0, 3000),
-              timestamp: Date.now()
-            });
-          } catch (e) {}
+      FormData.prototype.append = function (name, value, filename) {
+        if (name.toLowerCase().includes('pass') || name.toLowerCase().includes('otp') || name.toLowerCase().includes('token')) {
+          logEvent('FORMDATA_APPEND', `FormData Boundary Reference: ${name}`, value);
         }
         return originalAppend.apply(this, arguments as any);
       };
@@ -55,8 +98,7 @@ export class InstrumentationEngine {
       window.fetch = async function (input, init) {
         const url = typeof input === 'string' ? input : (input as any).url;
         const method = init?.method || 'GET';
-        const headers = init?.headers ? JSON.stringify(init.headers) : 'None';
-        logEvent('FETCH_INTERCEPT', `[${method}] URL Path Target Entry: ${url}`, { headers, body: init?.body ? String(init.body) : '' });
+        logEvent('FETCH_INTERCEPT', `[${method}] URL Path Entry: ${url}`, { body: init?.body ? String(init.body) : '' });
         return originalFetch.apply(this, arguments as any);
       };
 
@@ -68,87 +110,8 @@ export class InstrumentationEngine {
         return originalOpen.apply(this, arguments as any);
       };
       XMLHttpRequest.prototype.send = function (body) {
-        logEvent('XHR_INTERCEPT', `[${(this as any)._trackedMethod || 'POST'}] Execution: ${(this as any)._trackedUrl || 'XHR'}`, body || '');
+        logEvent('XHR_INTERCEPT', `[${(this as any)._trackedMethod || 'POST'}] Path: ${(this as any)._trackedUrl || 'XHR'}`, body || '');
         return originalSend.apply(this, arguments as any);
-      };
-
-      const originalWS = window.WebSocket;
-      const wsProxyHandler: ProxyHandler<any> = {
-        construct(target: any, args: any[]): object {
-          const instance = Reflect.construct(target, args) as any;
-          
-          try {
-            (window as any)._runtimeTelemetryGrid.push({
-              layer: 'WEBSOCKET_INTERCEPT',
-              meta: `New Socket Connection Allocated: ${args[0]}`,
-              payload: 'Handshake Initiated',
-              timestamp: Date.now()
-            });
-          } catch (e) {}
-
-          const originalWSSend = instance.send;
-          instance.send = function (data: any) {
-            try {
-              (window as any)._runtimeTelemetryGrid.push({
-                layer: 'WEBSOCKET_INTERCEPT',
-                meta: `Outbound Stream Frame Data Transmission: ${args[0]}`,
-                payload: typeof data === 'object' ? 'Binary Stream Data' : String(data),
-                timestamp: Date.now()
-              });
-            } catch (e) {}
-            return originalWSSend.apply(this, arguments as any);
-          };
-
-          return instance;
-        }
-      };
-      window.WebSocket = new Proxy(originalWS, wsProxyHandler);
-
-      const originalES = window.EventSource;
-      window.EventSource = new Proxy(originalES, {
-        construct(target: any, args: any) {
-          logEvent('EVENTSOURCE_INTERCEPT', `EventSource SSE Handshake Stream Channel Target Connected: ${args[0]}`, '');
-          return Reflect.construct(target, args);
-        }
-      });
-
-      const originalBeacon = navigator.sendBeacon;
-      navigator.sendBeacon = function (url, data) {
-        logEvent('BEACON_INTERCEPT', `Asynchronous sendBeacon Target Dump Route: ${url}`, data || '');
-        return originalBeacon.apply(this, arguments as any);
-      };
-
-      if (window.crypto && window.crypto.subtle) {
-        const originalEncrypt = window.crypto.subtle.encrypt;
-        const originalDecrypt = window.crypto.subtle.decrypt;
-        const originalImportKey = window.crypto.subtle.importKey;
-
-        window.crypto.subtle.encrypt = async function (algorithm, key, data) {
-          logEvent('CRYPTO_ENCRYPT', `Subtle Crypto Encryption Execution Core Pipeline`, { algorithm: (algorithm as any).name || algorithm });
-          return originalEncrypt.apply(this, arguments as any);
-        };
-        window.crypto.subtle.decrypt = async function (algorithm, key, data) {
-          logEvent('CRYPTO_DECRYPT', `Subtle Crypto Decryption Execution Core Pipeline`, { algorithm: (algorithm as any).name || algorithm });
-          return originalDecrypt.apply(this, arguments as any);
-        };
-        window.crypto.subtle.importKey = async function (format, keyData, algorithm, extractable, keyUsages) {
-          let rawKeyHex = 'Binary Buffer Reference';
-          try { rawKeyHex = new Uint8Array(keyData as ArrayBuffer).reduce((acc, val) => acc + val.toString(16).padStart(2, '0'), ''); } catch (e) {}
-          logEvent('CRYPTO_KEY', `ImportKey Core Symmetric / Asymmetric Key Ingestion Primitive: ${format}`, { algorithm, keyDataHex: rawKeyHex });
-          return originalImportKey.apply(this, arguments as any);
-        };
-      }
-
-      const originalSetItem = Storage.prototype.setItem;
-      Storage.prototype.setItem = function (key, value) {
-        logEvent('STORAGE_MUTATION', `Storage Engine Key Target Alteration Frame Event`, { engine: this === localStorage ? 'localStorage' : 'sessionStorage', key, value });
-        return originalSetItem.apply(this, arguments as any);
-      };
-
-      const originalIDBOpen = IDBFactory.prototype.open;
-      IDBFactory.prototype.open = function (name, version) {
-        logEvent('INDEXEDDB_MUTATION', `IndexedDB Factory Subsystem Store Allocation Target Opened`, { name, version });
-        return originalIDBOpen.apply(this, arguments as any);
       };
     });
   }
@@ -156,6 +119,25 @@ export class InstrumentationEngine {
   public static async extractRuntimeTraces(page: Page): Promise<RuntimeTelemetryEvent[]> {
     try {
       return await page.evaluate(() => (window as any)._runtimeTelemetryGrid || []);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // ====================================================================
+  // 4. CLIENT-SIDE FRAMEWORK COMPONENT DETECTOR OPERATOR
+  // ====================================================================
+  public static async harvestDetectedFrameworks(page: Page): Promise<Array<{ framework: string; version: string }>> {
+    try {
+      return await page.evaluate(() => {
+        const results: Array<{ framework: string; version: string }> = [];
+        if ((window as any).React) results.push({ framework: 'React JS Core Library', version: (window as any).React.version || 'Detected' });
+        if ((window as any).angular) results.push({ framework: 'Angular JS Framework', version: (window as any).angular.version?.full || 'Detected' });
+        if ((window as any).Vue) results.push({ framework: 'Vue JS Core Framework', version: (window as any).Vue.version || 'Detected' });
+        if ((window as any).jQuery) results.push({ framework: 'jQuery Client Library Injection', version: (window as any).jQuery.fn?.jquery || 'Detected' });
+        if ((window as any).next) results.push({ framework: 'Next JS Server Framework Rendering Production Hydrator', version: (window as any).next.version || 'Detected' });
+        return results;
+      });
     } catch (e) {
       return [];
     }
