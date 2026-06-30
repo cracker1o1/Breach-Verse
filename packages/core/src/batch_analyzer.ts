@@ -108,20 +108,18 @@ async function launchAnalyzerConsole() {
   rl.question(`\n${BOLD}${WHITE}⚙ Choose Analytics Processing Vector Target (1-6): ${RESET}`, async (choice) => {
     const selectedOption = choice.trim();
 
-    // AI Provider Registry
-    const PROVIDER_NAMES: Record<string, string> = {
+    // AI Names Key Mapping Display functionality
+    const AI_PROVIDERS_MAP: Record<string, string> = {
       '1': 'Google Gemini 2.5 Pro Core',
-      '2': 'Groq Cloud Compute Grid (Llama 3 70B)',
+      '2': 'Groq Cloud Compute Grid (Llama 3 70B Fast Chat)',
       '3': 'Mistral Large Infrastructure AI Core',
       '4': 'Cohere Command-R Plus Enterprise Cluster'
     };
 
-    // Display active connector layer after provider selection
-    const activeEngine = PROVIDER_NAMES[selectedOption];
-    if (activeEngine) {
-      console.log(`\n======================================================================`);
-      console.log(`[⚡] ACTIVE CONNECTOR LAYER: Initializing channel via ${activeEngine}`);
-      console.log(`======================================================================\n`);
+    if (AI_PROVIDERS_MAP[selectedOption]) {
+      console.log(`\n${CYAN}======================================================================${RESET}`);
+      console.log(`[⚡] ${BOLD}${GREEN}ACTIVE CONNECTION:${RESET} Launching channel via ${BOLD}${YELLOW}${AI_PROVIDERS_MAP[selectedOption]}${RESET}`);
+      console.log(`${CYAN}======================================================================${RESET}\n`);
     }
 
     if (selectedOption === '5') {
@@ -250,7 +248,6 @@ ${latestAssessment.runtimeTaintFlows.filter(rf => rf.sourceType === 'DOM_TAINT' 
           activeLoopPayload = { model: 'command-r-plus', preamble: masterSystemInstruction, message: promptQuery, chat_history: cohereHistory, temperature: 0.2 };
         }
 
-        // 🔥 FIXED: Explicit connection verification logging to output network diagnostic tracking metrics
         try {
           const chatRes = await fetch(endpointUrl, { method: 'POST', headers: targetHeaders, body: JSON.stringify(activeLoopPayload) });
           
